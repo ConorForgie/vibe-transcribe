@@ -8,7 +8,10 @@ version = "0.1.0"
 description = "Cross-platform voice transcription app with global hotkeys and LLM processing"
 
 [tasks]
-start = "python main.py"
+record = "python main.py record"
+record-hold = "python main.py record --hold"
+stop = "python main.py stop"
+status = "python main.py status"
 config = "python main.py config-setup"
 test-audio = "python main.py test-audio"
 test-whisper = "python main.py test-whisper"
@@ -26,7 +29,6 @@ pip = "*"
 faster-whisper = ">=1.0.0"
 soundfile = ">=0.12.1"
 pyperclip = ">=1.8.2"
-pynput = ">=1.7.6"
 soundcard = ">=0.4.2"
 
 [environments]

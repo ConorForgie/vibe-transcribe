@@ -4,12 +4,13 @@ A cross-platform voice transcription app with global hotkeys, local Whisper tran
 
 ## Features
 
-- **Global Hotkeys**: Toggle or hold-to-record voice input from anywhere
+- **CLI-Based Recording**: Toggle or hold-to-record via command line
+- **External Hotkey Support**: Works with PowerToys (Windows) or xbindkeys (Linux)
 - **Local Transcription**: Uses OpenAI Whisper for offline speech-to-text
 - **LLM Text Improvement**: Multiple processing modes using OpenAI API or remote Ollama
 - **Memory-Only**: No disk writes - results go directly to clipboard
 - **Cross-Platform**: Works on Windows, Linux, and WSL
-- **CLI Interface**: Lightweight background process
+- **State Management**: Tracks recording status across processes
 
 ## Processing Modes
 
@@ -42,15 +43,18 @@ sudo apt install alsa-utils
 # Install dependencies with pixi (recommended)
 pixi install
 
-# Run with default settings
-pixi run start
+# Basic usage (CLI commands)
+pixi run record           # Toggle recording on/off
+pixi run record-hold      # Hold-to-record mode
+pixi run stop             # Stop any active recording
+pixi run status           # Check recording status
 
 # Test components
 pixi run test-audio
 pixi run test-whisper
 pixi run show-config
 
-# Configure hotkeys and models
+# Configure settings
 pixi run config
 ```
 
@@ -95,13 +99,47 @@ If audio doesn't work:
 - Check WSLg version: `wsl --version` (need WSLg 1.0+)
 - Restart WSL: `wsl --shutdown` then `wsl` in Windows PowerShell
 
+## Global Hotkey Setup
+
+Since this app uses a CLI-based approach, you'll need external hotkey management:
+
+### Windows (PowerToys)
+
+1. Install [PowerToys](https://github.com/microsoft/PowerToys)
+2. Open PowerToys Settings → Keyboard Manager → Remap shortcuts
+3. Add these mappings:
+
+```
+Ctrl+Alt+T → Run Command → cd /path/to/vibe-transcribe && pixi run record
+Ctrl+Alt+H → Run Command → cd /path/to/vibe-transcribe && pixi run record-hold
+```
+
+### Linux/WSL
+
+Create `~/.xbindkeysrc`:
+
+```bash
+# Toggle recording
+"cd /path/to/vibe-transcribe && pixi run record"
+    control+alt + t
+
+# Hold recording  
+"cd /path/to/vibe-transcribe && pixi run record-hold"
+    control+alt + h
+```
+
+Then run: `xbindkeys`
+
+### macOS
+
+Use Karabiner-Elements or similar to map hotkeys to shell commands.
+
 ## Architecture
 
 ```
-main.py (CLI entry point)
+main.py (CLI entry point with state management)
 ├── audio/
-│   ├── recorder.py (audio capture)
-│   └── hotkeys.py (global hotkey handling)
+│   └── recorder.py (audio capture via soundcard)
 ├── transcription/
 │   └── whisper_client.py (local Whisper integration)
 ├── processing/
@@ -109,6 +147,22 @@ main.py (CLI entry point)
 │   └── modes.py (text processing modes)
 ├── utils/
 │   ├── clipboard.py (clipboard operations)
-│   └── logger.py (optional logging)
+│   └── logger.py (logging setup)
 └── config.py (configuration settings)
+```
+
+## CLI Commands
+
+```bash
+# Recording commands
+pixi run record                    # Toggle recording on/off
+pixi run record --mode summarize   # Toggle with specific mode
+pixi run record --hold             # Hold-to-record mode
+pixi run stop                      # Stop active recording
+pixi run status                    # Check recording status
+
+# Testing commands
+pixi run test-audio                # Test audio capture
+pixi run test-whisper              # Test Whisper transcription
+pixi run show-config               # Show current configuration
 ```
