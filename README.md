@@ -26,33 +26,74 @@ A cross-platform voice transcription app with global hotkeys, local Whisper tran
 
 ### Prerequisites
 
-On Linux systems, you'll need to install kernel headers for the global hotkey functionality:
+On Linux/WSL systems, you'll need to install system dependencies:
 
 ```bash
-sudo apt-get install build-essential linux-headers-generic
-```
+# Required system packages
+sudo apt install build-essential linux-headers-generic portaudio19-dev pulseaudio pulseaudio-utils
 
-**For WSL users:** You'll also need X11 forwarding for hotkey support. Either:
-- Use WSL2 with WSLg (Windows 11) - should work out of the box
-- Or set up X11 forwarding with VcXsrv/Xming and `export DISPLAY=:0`
+# For WSL2 users, also needed for audio support
+sudo apt install alsa-utils
+```
 
 ### Installation
 
 ```bash
-# Install dependencies with pixi
+# Install dependencies with pixi (recommended)
 pixi install
-
-# Or with pip
-pip install -r requirements.txt
 
 # Run with default settings
 pixi run start
-# Or: python main.py
+
+# Test components
+pixi run test-audio
+pixi run test-whisper
+pixi run show-config
 
 # Configure hotkeys and models
 pixi run config
-# Or: python main.py --config
 ```
+
+### WSL2 Setup (Windows Users)
+
+For WSL2 users, additional setup is required for audio and X11 support:
+
+#### 1. X11 Display Setup
+```bash
+# Add to ~/.bashrc
+export DISPLAY=:0
+```
+
+#### 2. PulseAudio Setup
+WSL2 uses WSLg which provides PulseAudio support:
+
+```bash
+# Add to ~/.bashrc
+export PULSE_SERVER=unix:/mnt/wslg/PulseServer
+
+# Test PulseAudio connection
+pactl info
+
+# Should show:
+# Server String: unix:/mnt/wslg/PulseServer
+# Default Source: RDPSource
+```
+
+#### 3. Verify Audio Devices
+```bash
+# Test audio setup
+pixi run python scripts/test_soundcard.py
+
+# Should detect:
+# - Microphone: RDP Source (1 channels)
+# - Speaker: RDP Sink (2 channels)
+```
+
+#### 4. Troubleshooting WSL2
+If audio doesn't work:
+- Ensure Windows microphone permissions are enabled
+- Check WSLg version: `wsl --version` (need WSLg 1.0+)
+- Restart WSL: `wsl --shutdown` then `wsl` in Windows PowerShell
 
 ## Architecture
 
