@@ -1,0 +1,37 @@
+
+[workspace]
+authors = ["Conor Forgie <con-4@hotmail.co.uk>"]
+channels = ["conda-forge", "pytorch"]
+name = "vibe-transcribe"
+platforms = ["linux-64", "win-64", "osx-64"]
+version = "0.1.0"
+description = "Cross-platform voice transcription app with global hotkeys and LLM processing"
+
+[tasks]
+start = "python main.py"
+config = "python main.py config-setup"
+test-audio = "python main.py test-audio"
+test-whisper = "python main.py test-whisper"
+show-config = "python main.py show-config"
+
+[dependencies]
+python = ">=3.8"
+typer = ">=0.9.0"
+requests = ">=2.31.0"
+numpy = ">=1.20.0"
+av = ">=10.0.0"
+pip = "*"
+
+[pypi-dependencies]
+faster-whisper = ">=1.0.0"
+soundfile = ">=0.12.1"
+pyperclip = ">=1.8.2"
+pynput = ">=1.7.6"
+soundcard = ">=0.4.2"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[feature.dev.dependencies]
+pixi-pycharm = "*"
