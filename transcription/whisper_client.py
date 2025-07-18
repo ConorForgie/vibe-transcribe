@@ -79,7 +79,7 @@ class WhisperClient:
                 language=self.language,
                 beam_size=1,  # Faster inference
                 best_of=1,    # Faster inference
-                vad_filter=True,  # Voice activity detection
+                vad_filter=False,  # Voice activity detection - for now some onnx lib issues
                 vad_parameters=dict(min_silence_duration_ms=500)
             )
             
