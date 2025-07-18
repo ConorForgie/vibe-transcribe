@@ -2,6 +2,10 @@
 """
 Vibe Transcribe - Voice transcription with global hotkeys and LLM processing
 """
+import os
+# Fix OpenMP library conflict on Windows
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 import asyncio
 import logging
 from typing import Optional
