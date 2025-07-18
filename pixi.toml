@@ -26,7 +26,7 @@ pip = "*"
 faster-whisper = ">=1.0.0"
 soundfile = ">=0.12.1"
 pyperclip = ">=1.8.2"
-pynput = ">=1.7.6"
+keyboard = ">=0.13.5"
 soundcard = ">=0.4.2"
 
 [environments]
