@@ -55,32 +55,48 @@ class HotkeyManager:
         
     def _key_matches_combination(self, key_set: set) -> bool:
         """Check if currently pressed keys match the given combination"""
-        # For modifier combinations, we need to check if all required keys are pressed
         required_keys = key_set.copy()
         pressed_keys = self.currently_pressed.copy()
         
-        # Handle modifier key variants (left/right)
-        for required_key in list(required_keys):
-            if required_key in pressed_keys:
-                continue
-            elif hasattr(required_key, 'vk'):
-                # Check if any pressed key matches this one
-                for pressed_key in pressed_keys:
-                    if hasattr(pressed_key, 'vk') and pressed_key.vk == required_key.vk:
-                        break
-                else:
-                    return False
+        # Group required keys by type (ctrl, alt, shift, regular)
+        required_groups = {
+            'ctrl': set(),
+            'alt': set(), 
+            'shift': set(),
+            'regular': set()
+        }
+        
+        for key in required_keys:
+            if key in (Key.ctrl_l, Key.ctrl_r):
+                required_groups['ctrl'].add(key)
+            elif key in (Key.alt_l, Key.alt_r):
+                required_groups['alt'].add(key)
+            elif key in (Key.shift_l, Key.shift_r):
+                required_groups['shift'].add(key)
             else:
+                required_groups['regular'].add(key)
+        
+        # Check if at least one key from each required group is pressed
+        for group_name, group_keys in required_groups.items():
+            if not group_keys:
+                continue  # Skip empty groups
+                
+            # Check if any key from this group is pressed
+            if not any(key in pressed_keys for key in group_keys):
                 return False
                 
-        return len(pressed_keys.intersection(required_keys)) > 0
+        return True
         
     def _on_key_press(self, key):
         """Handle key press events"""
         self.currently_pressed.add(key)
         
+        # Debug logging
+        self.logger.debug(f"Key pressed: {key}, currently pressed: {self.currently_pressed}")
+        
         # Check for toggle hotkey
         if self._key_matches_combination(self.toggle_keys):
+            self.logger.info("🔄 Toggle hotkey detected!")
             if self.toggle_callback:
                 # Run async callback in thread
                 def run_callback():
@@ -93,6 +109,7 @@ class HotkeyManager:
                 
         # Check for hold hotkey start
         elif self._key_matches_combination(self.hold_keys) and not self.hold_key_pressed:
+            self.logger.info("🎤 Hold hotkey start detected!")
             self.hold_key_pressed = True
             if self.hold_start_callback:
                 def run_callback():
