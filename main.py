@@ -7,11 +7,9 @@ import logging
 from typing import Optional
 import typer
 from pathlib import Path
-import os
-import signal
-import sys
 
 import config
+from audio.hotkeys import HotkeyManager
 from audio.recorder import AudioRecorder
 from transcription.whisper_client import WhisperClient
 from processing.llm_client import LLMClient
@@ -20,9 +18,6 @@ from utils.logger import setup_logging
 
 app = typer.Typer(help="Vibe Transcribe - Voice transcription with global hotkeys")
 
-# State file for tracking recording status
-STATE_FILE = Path("/tmp/vibe-transcribe.state")
-
 class VibeTranscribe:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -30,40 +25,29 @@ class VibeTranscribe:
         self.whisper = WhisperClient(config.WHISPER)
         self.llm = LLMClient(config.LLM_PROVIDERS, config.DEFAULT_PROVIDER)
         self.recorder = AudioRecorder(config.AUDIO)
-        self.recording_process = None
+        self.hotkey_manager = HotkeyManager(config.HOTKEYS)
         
-    def is_recording(self) -> bool:
-        """Check if currently recording based on state file"""
-        return STATE_FILE.exists()
+        # Set up callbacks
+        self.hotkey_manager.set_callbacks(
+            toggle_callback=self._handle_toggle_recording,
+            hold_start_callback=self._handle_start_recording,
+            hold_end_callback=self._handle_stop_recording
+        )
         
-    def set_recording_state(self, recording: bool, pid: int = None):
-        """Set recording state"""
-        if recording:
-            STATE_FILE.write_text(str(pid or os.getpid()))
+    async def _handle_toggle_recording(self):
+        """Handle toggle recording hotkey"""
+        if self.recorder.is_recording:
+            await self._stop_and_process()
         else:
-            STATE_FILE.unlink(missing_ok=True)
+            self._start_recording()
             
-    def get_recording_pid(self) -> Optional[int]:
-        """Get PID of recording process"""
-        if STATE_FILE.exists():
-            try:
-                return int(STATE_FILE.read_text().strip())
-            except (ValueError, FileNotFoundError):
-                return None
-        return None
+    async def _handle_start_recording(self):
+        """Handle start of hold-to-record"""
+        self._start_recording()
         
-    def kill_recording_process(self):
-        """Kill existing recording process"""
-        pid = self.get_recording_pid()
-        if pid:
-            try:
-                os.kill(pid, signal.SIGTERM)
-                self.logger.info(f"Stopped recording process {pid}")
-            except ProcessLookupError:
-                self.logger.warning(f"Recording process {pid} not found")
-            except PermissionError:
-                self.logger.error(f"Permission denied to kill process {pid}")
-        self.set_recording_state(False)
+    async def _handle_stop_recording(self):
+        """Handle end of hold-to-record"""
+        await self._stop_and_process()
         
     def _start_recording(self):
         """Start audio recording"""
@@ -73,7 +57,7 @@ class VibeTranscribe:
         except Exception as e:
             self.logger.error(f"Failed to start recording: {e}")
             
-    async def _stop_and_process(self, mode: str):
+    async def _stop_and_process(self):
         """Stop recording and process audio"""
         try:
             audio_data = self.recorder.stop_recording()
@@ -89,10 +73,10 @@ class VibeTranscribe:
                 return
                 
             # Process with LLM if not just transcribe mode
-            if mode != "transcribe":
-                self.logger.info(f"🧠 Processing with mode: {mode}")
+            if config.DEFAULT_MODE != "transcribe":
+                self.logger.info(f"🧠 Processing with mode: {config.DEFAULT_MODE}")
                 try:
-                    processed_text = await self.llm.process_text(transcription, mode)
+                    processed_text = await self.llm.process_text(transcription, config.DEFAULT_MODE)
                     final_text = processed_text
                 except Exception as e:
                     self.logger.warning(f"LLM processing failed, using transcription: {e}")
@@ -109,110 +93,38 @@ class VibeTranscribe:
                 
         except Exception as e:
             self.logger.error(f"Processing failed: {e}")
-        finally:
-            self.set_recording_state(False)
             
-    async def record_toggle(self, mode: str = None):
-        """Toggle recording on/off"""
-        if self.is_recording():
-            # Stop existing recording
-            self.kill_recording_process()
-            return
-            
-        # Start new recording
-        mode = mode or config.DEFAULT_MODE
-        self.logger.info(f"🎤 Starting recording in {mode} mode...")
-        self.set_recording_state(True)
+    async def run(self):
+        """Main application loop"""
+        self.logger.info("🚀 Vibe Transcribe starting...")
+        self.logger.info(f"🎯 Mode: {config.DEFAULT_MODE}")
+        self.logger.info(f"🔥 Hotkeys: {config.HOTKEYS}")
         
         try:
-            self.recorder.start_recording()
-            self.logger.info("🎤 Recording... Press Ctrl+Alt+T again to stop")
+            # Start hotkey listeners
+            self.hotkey_manager.start()
+            self.logger.info("🎮 Hotkeys active - Press Ctrl+C to exit")
             
-            # Keep recording until interrupted
-            while self.is_recording():
-                await asyncio.sleep(0.1)
-                
-        except KeyboardInterrupt:
-            self.logger.info("🛑 Recording stopped by user")
-        finally:
-            await self._stop_and_process(mode)
-            
-    async def record_hold(self, mode: str = None):
-        """Record while process is running"""
-        mode = mode or config.DEFAULT_MODE
-        self.logger.info(f"🎤 Hold recording in {mode} mode...")
-        self.set_recording_state(True)
-        
-        try:
-            self.recorder.start_recording()
-            self.logger.info("🎤 Recording... Release hotkey to stop")
-            
-            # Keep recording until interrupted
+            # Keep running until interrupted
             while True:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(1)
                 
         except KeyboardInterrupt:
-            self.logger.info("🛑 Recording stopped")
+            self.logger.info("👋 Shutting down...")
         finally:
-            await self._stop_and_process(mode)
-            self.set_recording_state(False)
+            self.hotkey_manager.stop()
 
 @app.command()
-def record(
-    mode: str = typer.Option(None, "--mode", "-m", help="Processing mode"),
-    hold: bool = typer.Option(False, "--hold", help="Hold to record mode")
-):
-    """Start recording (toggle or hold mode)"""
+def start():
+    """Start the transcription service"""
     setup_logging(config.LOG_FILE)
     vibe = VibeTranscribe()
-    
-    # Use default mode if not specified
-    mode = mode or config.DEFAULT_MODE
-    
-    # Validate mode
-    if mode not in config.PROCESSING_MODES:
-        typer.echo(f"❌ Invalid mode: {mode}")
-        typer.echo(f"Available modes: {list(config.PROCESSING_MODES.keys())}")
-        raise typer.Exit(1)
-    
-    if hold:
-        asyncio.run(vibe.record_hold(mode))
-    else:
-        asyncio.run(vibe.record_toggle(mode))
-
-@app.command()
-def stop():
-    """Stop any active recording"""
-    setup_logging(config.LOG_FILE)
-    vibe = VibeTranscribe()
-    
-    if vibe.is_recording():
-        vibe.kill_recording_process()
-        typer.echo("🛑 Recording stopped")
-    else:
-        typer.echo("ℹ️  No active recording")
-
-@app.command()
-def status():
-    """Show recording status"""
-    vibe = VibeTranscribe()
-    
-    if vibe.is_recording():
-        pid = vibe.get_recording_pid()
-        typer.echo(f"🎤 Recording active (PID: {pid})")
-    else:
-        typer.echo("🟢 Ready to record")
+    asyncio.run(vibe.run())
 
 @app.command()
 def config_setup():
     """Interactive configuration setup"""
     typer.echo("🔧 Configuration setup coming soon...")
-    typer.echo("\n💡 For now, edit config.py directly")
-    typer.echo("\n🎮 External Hotkey Setup:")
-    typer.echo("  Windows: Use PowerToys to map:")
-    typer.echo("    Ctrl+Alt+T → pixi run python main.py record")
-    typer.echo("    Ctrl+Alt+H → pixi run python main.py record --hold")
-    typer.echo("  Linux: Use xbindkeys or similar")
     # TODO: Implement interactive config
 
 @app.command()
@@ -258,15 +170,11 @@ def test_whisper():
 def show_config():
     """Display current configuration"""
     typer.echo("📋 Current Configuration:")
+    typer.echo(f"  Hotkeys: {config.HOTKEYS}")
     typer.echo(f"  Whisper Model: {config.WHISPER['model']}")
     typer.echo(f"  Default Provider: {config.DEFAULT_PROVIDER}")
     typer.echo(f"  Default Mode: {config.DEFAULT_MODE}")
     typer.echo(f"  Available Modes: {list(config.PROCESSING_MODES.keys())}")
-    typer.echo("\n🎯 CLI Usage:")
-    typer.echo("  Toggle recording: python main.py record")
-    typer.echo("  Hold recording: python main.py record --hold")
-    typer.echo("  Stop recording: python main.py stop")
-    typer.echo("  Check status: python main.py status")
 
 if __name__ == "__main__":
     app()
