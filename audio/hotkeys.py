@@ -69,15 +69,15 @@ class HotkeyManager:
                 self._on_toggle_hotkey
             )
             
-            # Register hold hotkey (press and release)
-            keyboard.on_press_key(
+            # Register hold hotkey using the same combination but with callback tracking
+            keyboard.add_hotkey(
                 self.hotkey_config["hold"], 
-                lambda _: self._on_hold_press()
+                self._on_hold_press,
+                suppress=False
             )
-            keyboard.on_release_key(
-                self.hotkey_config["hold"], 
-                lambda _: self._on_hold_release()
-            )
+            
+            # We'll use a different approach for hold release - monitor key releases
+            self._setup_hold_release_monitoring()
             
             self.hotkeys_registered = True
             self.logger.info(f"Hotkey listener started with toggle: {self.hotkey_config['toggle']}, hold: {self.hotkey_config['hold']}")
@@ -86,6 +86,17 @@ class HotkeyManager:
             self.logger.error(f"Failed to start hotkey listener: {e}")
             self.logger.error("Another application may be using these hotkey combinations")
             raise
+            
+    def _setup_hold_release_monitoring(self):
+        """Setup monitoring for hold key release"""
+        def on_key_event(event):
+            # Check if any key in the hold combination was released
+            if event.event_type == keyboard.KEY_UP and self.hold_key_pressed:
+                # Simple check: if any modifier key is released, end hold
+                if event.name in ['ctrl', 'alt', 'shift'] or event.name == 'h':
+                    self._on_hold_release()
+                    
+        keyboard.hook(on_key_event)
             
     def stop(self):
         """Stop listening for hotkeys"""
