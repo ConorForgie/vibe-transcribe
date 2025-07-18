@@ -3,7 +3,7 @@
 authors = ["Conor Forgie <con-4@hotmail.co.uk>"]
 channels = ["conda-forge", "pytorch"]
 name = "vibe-transcribe"
-platforms = ["linux-64", "win-64", "osx-64"]
+platforms = ["linux-64", "win-64"]
 version = "0.1.0"
 description = "Cross-platform voice transcription app with global hotkeys and LLM processing"
 
@@ -24,7 +24,8 @@ pip = "*"
 
 [pypi-dependencies]
 faster-whisper = ">=1.0.0"
-ctranslate2 = "==4.4.0"
+ctranslate2 = "<4.5.0"
+onnxruntime = ">=1.15.0"
 soundfile = ">=0.12.1"
 pyperclip = ">=1.8.2"
 keyboard = ">=0.13.5"
