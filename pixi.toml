@@ -24,6 +24,7 @@ pip = "*"
 
 [pypi-dependencies]
 faster-whisper = ">=1.0.0"
+ctranslate2 = ">=4.0.0"
 soundfile = ">=0.12.1"
 pyperclip = ">=1.8.2"
 keyboard = ">=0.13.5"
