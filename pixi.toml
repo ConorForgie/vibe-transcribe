@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Cross-platform voice transcription app with global hotkeys and LLM processing"
 
 [tasks]
-start = "python main.py"
+start = "python main.py start"
 config = "python main.py config-setup"
 test-audio = "python main.py test-audio"
 test-whisper = "python main.py test-whisper"
