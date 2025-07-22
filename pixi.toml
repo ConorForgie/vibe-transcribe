@@ -18,7 +18,7 @@ show-config = "python main.py show-config"
 python = ">=3.8"
 typer = ">=0.9.0"
 requests = ">=2.31.0"
-#numpy = ">=1.20.0,<2.0.0"
+numpy = ">=1.20.0,<2.0.0"
 av = ">=10.0.0"
 pip = "*"
 
