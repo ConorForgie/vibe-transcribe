@@ -68,14 +68,14 @@ class VibeTranscribe:
             if audio_data is None:
                 self.logger.warning("No audio data captured")
                 return
-                
+
             self.logger.info("🔄 Transcribing...")
             transcription = await self.whisper.transcribe(audio_data)
-            
+
             if not transcription.strip():
                 self.logger.warning("No speech detected")
                 return
-                
+
             # Process with LLM if not just transcribe mode
             if config.DEFAULT_MODE != "transcribe":
                 self.logger.info(f"🧠 Processing with mode: {config.DEFAULT_MODE}")
@@ -87,14 +87,14 @@ class VibeTranscribe:
                     final_text = transcription
             else:
                 final_text = transcription
-                
+
+            self.logger.info(f"Transcribed text[:50] = {final_text[:50]}")
             # Copy to clipboard
             if self.clipboard.copy_to_clipboard(final_text):
                 self.logger.info("✅ Text copied to clipboard")
             else:
-                self.logger.info("📝 Clipboard failed, printing result:")
-                print(final_text)
-                
+                self.logger.info("📝 Clipboard failed")
+
         except Exception as e:
             self.logger.error(f"Processing failed: {e}")
             
